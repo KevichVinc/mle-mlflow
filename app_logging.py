@@ -2,6 +2,9 @@ import psycopg2 as psycopg
 import pandas as pd
 import os
 import mlflow
+from dotenv import load_dotenv
+
+load_dotenv()
 
 connection = {"sslmode": "require", "target_session_attrs": "read-write"}
 postgres_credentials = {
@@ -15,37 +18,52 @@ assert all([var_value != "" for var_value in list(postgres_credentials.values())
 
 connection.update(postgres_credentials)
 
+os.environ["MLFLOW_S3_ENDPOINT_URL"] = "https://storage.yandexcloud.net" #endpoint бакета от YandexCloud
+os.environ["AWS_ACCESS_KEY_ID"] = os.getenv("AWS_ACCESS_KEY_ID") # получаем id ключа бакета, к которому подключён MLFlow, из .env
+os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY") # получаем ключ бакета, к которому подключён MLFlow, из .env
+
 # определяем название таблицы, в которой хранятся наши данные
 TABLE_NAME = "users_churn"
 
+# определяем глобальные переменные
+# поднимаем MLflow локально
+TRACKING_SERVER_HOST = "127.0.0.1"
+TRACKING_SERVER_PORT = 5000
+mlflow.set_tracking_uri(f"http://{TRACKING_SERVER_HOST}:{TRACKING_SERVER_PORT}")
 
-# эта конструкция создаёт контекстное управление для соединения с базой данных 
-# оператор with гарантирует, что соединение будет корректно закрыто после выполнения всех операций с базой данных
-# причём закрыто оно будет даже в случае ошибки при работе с базой данных
-# это нужно, чтобы не допустить так называемую "утечку памяти"
+print("Tracking URI:", mlflow.get_tracking_uri())
+exps = mlflow.search_experiments()
+print([e.name for e in exps])  # должен быть 'churn_fio'
+
+exp = mlflow.get_experiment_by_name("churn_fio")
+print(exp)  # не None
+
+runs = mlflow.search_runs(experiment_ids=[exp.experiment_id])
+print(runs[["run_id","status","start_time","end_time"]].head())
+
+
+# создаём подключение и выбираем данные
 with psycopg.connect(**connection) as conn:
-
-# создаём объект курсора для выполнения запросов к базе данных 
-# с помощью метода execute() выполняется SQL-запрос для выборки данных из таблицы TABLE_NAME
     with conn.cursor() as cur:
         cur.execute(f"SELECT * FROM {TABLE_NAME}")
-				
-				# извлекаем все строки, полученные в результате выполнения запроса
         data = cur.fetchall()
-
-				# получаем список имён столбцов из объекта курсора
         columns = [col[0] for col in cur.description]
 
-# создаём объект DataFrame из полученных данных и имён столбцов 
-# это позволяет удобно работать с данными в Python с использованием библиотеки Pandas
+# создаём DataFrame
 df = pd.DataFrame(data, columns=columns)
 
+# список колонок в строку
 columns = df.columns.tolist()
 columns_str = ",".join(columns)
 
-with open("columns_sol.txt", "w", encoding="utf-8") as f:
+# сохраняем список колонок в файл (теперь в columns.txt)
+with open("columns.txt", "w", encoding="utf-8") as f:
     f.write(columns_str)
 
+# сохраняем весь датасет для логирования
+df.to_csv("users_churn.csv", index=False)
+
+# собираем статистику
 counts_columns = [
     "type", "paperless_billing", "internet_service", "online_security", "online_backup", "device_protection",
     "tech_support", "streaming_tv", "streaming_movies", "gender", "senior_citizen", "partner", "dependents",
@@ -55,11 +73,8 @@ counts_columns = [
 stats = {}
 
 for col in counts_columns:
-    # посчитайте уникальные значения для колонок, где немного уникальных значений
     column_stat = df[col].value_counts()
     column_stat = {f"{col}_{key}": value for key, value in column_stat.items()}
-
-    # обновите словарь stats
     stats.update(column_stat)
 
 # числовые признаки
@@ -77,41 +92,31 @@ stats["total_charges_median"] = df["total_charges"].median()
 stats["unique_customers_number"] = df["customer_id"].nunique()
 stats["end_date_nan"] = df["end_date"].isna().sum()
 
-# задаём название эксперимента и имя запуска для логирования в MLflow
-
+# MLflow experiment/run
 EXPERIMENT_NAME = "churn_fio"
 RUN_NAME = "data_check"
 
-# создаём новый эксперимент в MLflow с указанным названием 
-# если эксперимент с таким именем уже существует, 
-# MLflow возвращает идентификатор существующего эксперимента
-experiment_id = mlflow.create_experiment(EXPERIMENT_NAME)
+# если эксперимент уже есть — используем его, если нет — создаём
+exp = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
+if exp is None:
+    experiment_id = mlflow.create_experiment(EXPERIMENT_NAME)
+else:
+    experiment_id = exp.experiment_id
 
 with mlflow.start_run(run_name=RUN_NAME, experiment_id=experiment_id) as run:
-    # получаем уникальный идентификатор запуска эксперимента
     run_id = run.info.run_id
-    
-    # логируем метрики эксперимента
-    # предполагается, что переменная stats содержит словарь с метриками,
-    # объявлять переменную stats не надо,
-    # где ключи — это названия метрик, а значения — числовые значения метрик
-    mlflow.log_metrics(stats) # ваш код здесь
-    
-    # логируем файлы как артефакты эксперимента — 'columns.txt' и 'users_churn.csv'
+
+    # логируем метрики
+    mlflow.log_metrics(stats)
+
+    # логируем артефакты
     mlflow.log_artifact("columns.txt", artifact_path="dataframe")
     mlflow.log_artifact("users_churn.csv", artifact_path="dataframe")
 
-experiment = mlflow.get_experiment_by_name(EXPERIMENT_NAME)
-# получаем данные о запуске эксперимента по его уникальному идентификатору
+# проверка статуса
 run = mlflow.get_run(run_id)
+assert run.info.status == "FINISHED"
 
-
-# проверяем, что статус запуска эксперимента изменён на 'FINISHED'
-# это утверждение (assert) можно использовать для автоматической проверки того, 
-# что эксперимент был завершён успешно
-assert run.info.status == 'FINISHED'
-
-# удаляем файлы 'columns.txt' и 'users_churn.csv' из файловой системы,
-# чтобы очистить рабочую среду после логирования артефактов
-os.remove('columns.txt')
-os.remove('users_churn.csv')
+# при желании можно удалить файлы после логирования
+os.remove("columns.txt")
+os.remove("users_churn.csv")

@@ -2,6 +2,9 @@ import os
 
 import mlflow
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # определяем основные credentials, которые нужны для подключения к MLflow
 # важно, что credentials мы передаём для себя как пользователей Tracking Service
@@ -15,12 +18,12 @@ os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY") # по�
 TRACKING_SERVER_HOST = "127.0.0.1"
 TRACKING_SERVER_PORT = 5000
 
-YOUR_NAME = "" # введите своё имя для создания уникального эксперимента
+YOUR_NAME = "testing_loging" # введите своё имя для создания уникального эксперимента
 assert YOUR_NAME, "введите своё имя в переменной YOUR_NAME для создания уникального эксперимента"
 
 # название тестового эксперимента и запуска (run) внутри него
 EXPERIMENT_NAME = f"test_connection_experiment_{YOUR_NAME}"
-RUN_NAME = "test_connection_run"
+RUN_NAME = "test_connection_run_1"
 
 # тестовые данные
 METRIC_NAME = "test_metric"
