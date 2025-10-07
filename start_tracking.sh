@@ -1,9 +1,10 @@
-export MLFLOW_S3_ENDPOINT_URL=https://storage.yandexcloud.net
-export AWS_ACCESS_KEY_ID=$S3_ACCESS_KEY
-export AWS_SECRET_ACCESS_KEY=$S3_SECRET_KEY
+export MLFLOW_S3_ENDPOINT_URL="https://storage.yandexcloud.net"
+# если трекинг-сервер/MLflow указывает на S3 по HTTPS — это всё
 
 mlflow server \
-  --backend-store-uri postgresql://mle_20250822_3251e459d3_freetrack:33fd5e17432348ea9248bb6edc30cb89@rc1b-uh7kdmcx67eomesf.mdb.yandexcloud.net:6432/playground_mle_20250822_3251e459d3 \
-  --registry-store-uri postgresql://mle_20250822_3251e459d3_freetrack:33fd5e17432348ea9248bb6edc30cb89@rc1b-uh7kdmcx67eomesf.mdb.yandexcloud.net:6432/playground_mle_20250822_3251e459d3 \
-  --default-artifact-root s3://s3-student-mle-20250822-3251e459d3-freetrack \
-  --no-serve-artifacts
+  --backend-store-uri "postgresql://${DB_DESTINATION_USER}:${DB_DESTINATION_PASSWORD}@${DB_DESTINATION_HOST}:${DB_DESTINATION_PORT}/${DB_DESTINATION_NAME}" \
+  --registry-store-uri "postgresql://${DB_DESTINATION_USER}:${DB_DESTINATION_PASSWORD}@${DB_DESTINATION_HOST}:${DB_DESTINATION_PORT}/${DB_DESTINATION_NAME}" \
+  --default-artifact-root "s3://${S3_BUCKET_NAME}" \
+  --serve-artifacts \
+  --host 0.0.0.0 --port 5000
+

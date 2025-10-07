@@ -3,9 +3,9 @@ import os
 import mlflow
 
 
-EXPERIMENT_NAME = "churn_vinc"
-RUN_NAME = "virtual_churn_check"
-REGISTRY_MODEL_NAME = "churn_model_vinc"
+EXPERIMENT_NAME = "churn_vinc_2"
+RUN_NAME = "virtual_churn_check_2 "
+REGISTRY_MODEL_NAME = "churn_model_vinc_2"
 
 
 os.environ["MLFLOW_S3_ENDPOINT_URL"] = "https://storage.yandexcloud.net"

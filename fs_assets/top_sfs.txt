@@ -1,0 +1,10 @@
+end_date
+monthly_charges
+total_charges
+senior_citizen
+customer_id_0562-HKHML
+customer_id_0795-LAFGP
+customer_id_1929-ZCBHE
+customer_id_2266-SJNAT
+customer_id_2729-VNVAP
+customer_id_2884-GBPFB

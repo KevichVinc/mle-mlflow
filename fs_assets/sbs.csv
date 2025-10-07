@@ -1,0 +1,2 @@
+,avg_score,ci_bound,cv_scores,feature_idx,feature_names,std_dev,std_err
+10,1.0,0.0,[1. 1. 1. 1.],"(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)","('end_date', 'monthly_charges', 'total_charges', 'senior_citizen', 'customer_id_0562-HKHML', 'customer_id_0795-LAFGP', 'customer_id_1929-ZCBHE', 'customer_id_2266-SJNAT', 'customer_id_2729-VNVAP', 'customer_id_2884-GBPFB')",0.0,0.0
